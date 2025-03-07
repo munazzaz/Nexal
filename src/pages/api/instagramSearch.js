@@ -1,14 +1,11 @@
 import { ApifyClient } from 'apify-client';
 
-// In-memory cache keyed solely on the query.
-// This will store the full dataset (e.g. up to 35 profiles) for each query.
+
 const fullSearchCache = {};
 
-// Maximum pages we allow (and therefore how many items to fetch = maxPages * limit)
 const MAX_PAGES = 7;
 
 export default async function handler(req, res) {
-  // Allow only GET requests.
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method Not Allowed. Only GET is supported.' });
   }
@@ -16,7 +13,6 @@ export default async function handler(req, res) {
   try {
     const { query, platform, page = 1, limit = 5 } = req.query;
 
-    // Validate query and platform.
     if (!query || query === '*') {
       return res.status(400).json({ error: 'Invalid query parameter. Provide a search term.' });
     }
@@ -24,7 +20,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Please select the correct platform. Only Instagram is supported.' });
     }
 
-    // Parse page and limit.
     const pageInt = parseInt(page, 10);
     const limitInt = parseInt(limit, 10);
     if (isNaN(pageInt) || pageInt < 1) {
@@ -37,28 +32,24 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: `Page ${pageInt} exceeds the maximum of ${MAX_PAGES} pages.` });
     }
 
-    // Use a cache key based solely on the query (so all pages share the same dataset)
     const cacheKey = query.toLowerCase();
 
     let fullData;
-    // Check if we already have the full data for this query cached.
     if (fullSearchCache[cacheKey]) {
       fullData = fullSearchCache[cacheKey];
     } else {
-      // Not cached: fetch full data with a larger searchLimit.
-      const totalFetchLimit = MAX_PAGES * limitInt; // e.g. 35 items if limit is 5
+      const totalFetchLimit = MAX_PAGES * limitInt; 
       const client = new ApifyClient({
-        token: 'apify_api_Fg3EwbIxRvoUMvKQp2YORhaoypUoc007jmoa',
+        token: 'apify_api_GP5LAo7dzbzZyGkj4Lu8i0tuJlI4G90qJLX0',
       });
 
       const input = {
         search: query,
         searchType: 'user',
         searchLimit: totalFetchLimit,
-        offset: 0, // fetch from the start
+        offset: 0, 
       };
 
-      // Call the Apify actor (this may take several seconds).
       const run = await client.actor('apify/instagram-search-scraper').call(input);
       if (!run || !run.defaultDatasetId) {
         return res.status(502).json({
@@ -71,21 +62,16 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'No related profiles found.' });
       }
       fullData = items;
-      // Cache the full dataset for this query.
       fullSearchCache[cacheKey] = fullData;
     }
 
-    // Reorder the full data so that, if an exact match exists, it is placed at the beginning.
     const q = query.toLowerCase();
     let orderedData;
-    // Find an exact match (or matches) from the full data.
     const exactMatchIndex = fullData.findIndex(item => (item.username || '').toLowerCase() === q);
     if (exactMatchIndex !== -1) {
-      // If found, remove all exact matches from the rest of the data.
       const exactMatches = fullData.filter(item => (item.username || '').toLowerCase() === q);
       const remainingProfiles = fullData.filter(item => (item.username || '').toLowerCase() !== q);
 
-      // Sort the remaining profiles by whether the username starts with the query and by length.
       remainingProfiles.sort((a, b) => {
         const aUser = (a.username || '').toLowerCase();
         const bUser = (b.username || '').toLowerCase();
@@ -95,10 +81,8 @@ export default async function handler(req, res) {
         if (!aStarts && bStarts) return 1;
         return aUser.length - bUser.length;
       });
-      // Place the first exact match at the top.
       orderedData = [exactMatches[0], ...remainingProfiles];
     } else {
-      // No exact match; simply sort the full data.
       orderedData = [...fullData];
       orderedData.sort((a, b) => {
         const aUser = (a.username || '').toLowerCase();
@@ -111,7 +95,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Apply pagination on the reordered data.
     const startIndex = (pageInt - 1) * limitInt;
     const endIndex = startIndex + limitInt;
     const paginatedItems = orderedData.slice(startIndex, endIndex);
@@ -121,7 +104,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Map the items to the desired response shape.
     const profiles = paginatedItems.map(item => ({
       id: item.id || item.username,
       username: item.username,
@@ -129,8 +111,7 @@ export default async function handler(req, res) {
       profilePicture: item.profilePicUrlHD || item.profilePicUrl || '/no-profile-pic-img.png',
     }));
 
-    // Create the response data. We use the full dataset's length for total,
-    // and assume total pages = MAX_PAGES.
+
     const responseData = {
       profiles,
       total: fullData.length,

@@ -1,4 +1,3 @@
-// src/pages/api/profileDetails.js
 import { ApifyClient } from 'apify-client';
 
 export default async function handler(req, res) {
@@ -12,12 +11,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Prepare the Apify client with your token
     const client = new ApifyClient({
-      token: 'apify_api_Fg3EwbIxRvoUMvKQp2YORhaoypUoc007jmoa'
+      token: 'apify_api_GP5LAo7dzbzZyGkj4Lu8i0tuJlI4G90qJLX0'
     });
     
-    // IMPORTANT: Use the required field "usernames" as an array
     const input = { usernames: [id] };
 
     const run = await client.actor('apify/instagram-profile-scraper').call(input);
@@ -35,7 +32,6 @@ export default async function handler(req, res) {
 
     const profile = items[0];
 
-    // Return all available details from the scraped data
     return res.status(200).json({
       id: profile.id || profile.username,
       username: profile.username,
@@ -49,12 +45,13 @@ export default async function handler(req, res) {
       isVerified: profile.isVerified ?? false,
       externalUrl: profile.externalUrl || '',
       businessCategory: profile.businessCategory || '',
-      // Map additional fields as needed
     });
   } catch (error) {
     console.error('Error fetching profile details:', error.message || error);
     return res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
 }
+
+
 
 

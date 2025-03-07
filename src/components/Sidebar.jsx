@@ -25,7 +25,6 @@ const Sidebar = ({ setGraphData, isSidebar}) => {
     setError(null);
 
     try {
-      // Call the backend API to search using the query
       const response = await fetch(`/api/search?query=${query}`);
       const data = await response.json();
 
@@ -44,7 +43,6 @@ const Sidebar = ({ setGraphData, isSidebar}) => {
       let nodes = [parentNode];
       let edges = [];
 
-      // Create child nodes based on the data returned
       Object.entries(data).forEach(([key, value], index) => {
         const childNode = {
           id: `${query}-${index}`,
@@ -56,7 +54,6 @@ const Sidebar = ({ setGraphData, isSidebar}) => {
         edges.push({ from: parentNode.id, to: childNode.id });
       });
 
-      // Set the graph data with nodes and edges
       setGraphData({ nodes, edges });
 
     } catch (err) {
@@ -117,7 +114,6 @@ const Sidebar = ({ setGraphData, isSidebar}) => {
       {error && <p className="error">{error}</p>}
       {loading && <p>Loading...</p>}
 
-      {/* Example Drag and Drop Section (Unchanged) */}
       <div className="description">
         <p className="text-white font-bold text-xl">
           Personal{" "}
@@ -125,13 +121,11 @@ const Sidebar = ({ setGraphData, isSidebar}) => {
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        {/* Add your draggable nodes here */}
         <div
           className="dndnode input flex flex-col items-center"
           onDragStart={(event) => onDragStart(event, "phone")}
           draggable
         >
-          {/* <FaPhoneAlt className="personal_node" /> */}
           <p className="text-gray-200 text-[13px]">Phone</p>
         </div>
         <div
@@ -139,7 +133,6 @@ const Sidebar = ({ setGraphData, isSidebar}) => {
           onDragStart={(event) => onDragStart(event, "email")}
           draggable
         >
-          {/* <MdOutlineMarkEmailUnread className="personal_node" /> */}
           <p className="text-gray-200 text-[13px]">Email</p>
         </div>
         <div
@@ -147,7 +140,6 @@ const Sidebar = ({ setGraphData, isSidebar}) => {
           onDragStart={(event) => onDragStart(event, "username")}
           draggable
         >
-          {/* <MdOutlineAlternateEmail className="personal_node" /> */}
           <p className="text-gray-200 text-[13px]">Username</p>
         </div>
       </div>

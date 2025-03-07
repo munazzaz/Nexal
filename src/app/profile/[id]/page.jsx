@@ -9,6 +9,7 @@ import Image from "next/image";
 import PostCard from "@/components/PostCard";
 import PostSearch from "@/components/PostSearch";
 
+
 const stats = [
     {
       iconSrc: "/card1.png",
@@ -158,21 +159,6 @@ export default function ProfilePage() {
                   </p>
                 )}
 
-                {/* Website (Link To) */}
-                {/* {data.externalUrl && (
-                  <div className="mt-4">
-                    <p className="text-sm text-gray-400">Link to</p>
-                    <a
-                      href={data.externalUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#2ABDB2] hover:underline"
-                    >
-                      {data.externalUrl}
-                    </a>
-                  </div>
-                )} */}
-
 {data.externalUrl && (
   <div className="mt-4">
     <p className="text-sm text-gray-400">Link to</p>
@@ -242,9 +228,16 @@ export default function ProfilePage() {
          <InterestsCard/>
 </div>
 
-<div className="mt-16 px-5">
-  <PostSearch />
-</div>
+{/* <div className="mt-16 px-5">
+  <PostSearch profileId={id} />
+</div>  */}
+
+
+  <div className="mt-16 px-5">
+    <PostSearch profileId={id} />
+  </div>
+
+
       </div>
     </div>
   );

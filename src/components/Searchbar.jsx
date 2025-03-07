@@ -11,18 +11,14 @@ const SearchBar = ({ placeholder = "Search Profile..." }) => {
   const [selectedPlatform, setSelectedPlatform] = useState("Instagram");
   const [error, setError] = useState("");
 
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // In-memory cache: { [pageNumber]: { profiles, currentPage, totalPages } }
   const [cachedPages, setCachedPages] = useState({});
 
-  // Fetch profiles for a given page
   const handleSearch = async (page = 1) => {
     const trimmedQuery = query.trim();
 
-    // Validate input
     if (!trimmedQuery || !/^[a-zA-Z0-9._]+$/.test(trimmedQuery)) {
       setError("User not found. Please type an existing username.");
       setProfiles([]);
@@ -34,7 +30,6 @@ const SearchBar = ({ placeholder = "Search Profile..." }) => {
       return;
     }
 
-    // If we already have this page in our cache, use it
     if (cachedPages[page]) {
       const { profiles: cachedProfs, currentPage: cp, totalPages: tp } =
         cachedPages[page];
@@ -50,7 +45,6 @@ const SearchBar = ({ placeholder = "Search Profile..." }) => {
     setProfiles([]);
 
     try {
-      // Call your API
       const response = await fetch(
         `/api/${selectedPlatform.toLowerCase()}Search?query=${trimmedQuery}&page=${page}&limit=5`
       );
@@ -66,12 +60,10 @@ const SearchBar = ({ placeholder = "Search Profile..." }) => {
         return;
       }
 
-      // Update state
       setProfiles(data.profiles || []);
       setCurrentPage(data.currentPage || page);
       setTotalPages(data.totalPages || 1);
 
-      // Cache the results for this page
       setCachedPages((prev) => ({
         ...prev,
         [page]: {
@@ -88,14 +80,12 @@ const SearchBar = ({ placeholder = "Search Profile..." }) => {
     }
   };
 
-  // Handle new search: clear cache, reset to page 1
   const onSearchClick = () => {
     setCurrentPage(1);
     setCachedPages({});
     handleSearch(1);
   };
 
-  // Handle platform dropdown
   const handleSelect = (platform) => {
     setSelectedPlatform(platform);
     setIsOpen(false);
@@ -109,7 +99,6 @@ const SearchBar = ({ placeholder = "Search Profile..." }) => {
     }
   };
 
-  // Pagination event handlers
   const onNext = () => {
     if (currentPage < totalPages) {
       handleSearch(currentPage + 1);
@@ -127,27 +116,22 @@ const SearchBar = ({ placeholder = "Search Profile..." }) => {
     }
   };
 
-  // Generate an array of page numbers, up to totalPages
   const getDisplayedPages = () => {
     const pages = [];
     if (totalPages <= 5) {
-      // Show all pages
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      // Show 1, 2, 3, 4, "...", totalPages
       pages.push(1, 2, 3, 4, "...", totalPages);
     }
     return pages;
   };
 
-  // Build the pagination UI
   const displayedPages = getDisplayedPages();
 
   return (
     <div className="flex flex-col items-center w-full space-y-4">
-      {/* Search input & platform dropdown */}
       <div className="flex items-center space-x-2 w-full">
         <div className="relative w-full">
           <Search
@@ -191,18 +175,16 @@ const SearchBar = ({ placeholder = "Search Profile..." }) => {
       </div>
 
 
-      {/* Error / loading */}
       {error && <p className="text-red-500">{error}</p>}
       {loading && <p className="text-[#F0FFFF]">Loading...</p>}
 
-      {/* Profiles list */}
       <div className="w-full space-y-2 bg-gray-800 border border-cyan-600 rounded-lg">
         {profiles.map((profile) => (
             <Link key={profile.id} href={`/profile/${profile.id}`}>
-          <div key={profile.id} className="p-4 rounded-md flex items-center">
+          <div className="p-4 rounded-md flex items-center">
             <Image
               src={profile.profilePicture || "/no-profile-pic-img.png"}
-              alt={profile.username}
+              alt={profile.username || "Profile image"}
               width={60}
               height={60}
               className="rounded-full mx-5"
@@ -218,10 +200,8 @@ const SearchBar = ({ placeholder = "Search Profile..." }) => {
         ))}
       </div>
 
-      {/* Pagination controls */}
       {profiles.length > 0 && (
         <div className="flex flex-col items-center mt-4">
-          {/* Previous / Next row */}
           <div className="flex items-center space-x-4">
             <button
               onClick={onPrev}
@@ -239,10 +219,8 @@ const SearchBar = ({ placeholder = "Search Profile..." }) => {
             </button>
           </div>
 
-          {/* Page number circles (with optional "...") */}
           <div className="flex space-x-2 mt-4">
             {displayedPages.map((p, idx) => {
-              // If p is "...", render a disabled circle
               if (p === "...") {
                 return (
                   <div
@@ -253,7 +231,6 @@ const SearchBar = ({ placeholder = "Search Profile..." }) => {
                   </div>
                 );
               }
-              // Otherwise render a clickable page
               return (
                 <button
                   key={`page-${p}`}
@@ -270,7 +247,6 @@ const SearchBar = ({ placeholder = "Search Profile..." }) => {
             })}
           </div>
 
-          {/* Page X of Y */}
           <p className="mt-2 text-white">
             Page {currentPage} of {totalPages}
           </p>
