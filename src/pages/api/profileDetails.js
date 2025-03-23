@@ -1,57 +1,44 @@
-import { ApifyClient } from 'apify-client';
-
 export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-
-  const { id } = req.query;
-  if (!id) {
-    return res.status(400).json({ error: 'Missing id parameter' });
+  const { username } = req.query;
+  if (!username) {
+    return res.status(400).json({ error: "Username is required" });
   }
 
   try {
-    const client = new ApifyClient({
-      token: 'apify_api_GP5LAo7dzbzZyGkj4Lu8i0tuJlI4G90qJLX0'
-    });
-    
-    const input = { usernames: [id] };
+    const apiResponse = await fetch(
+      `https://social-api4.p.rapidapi.com/v1/info?username_or_id_or_url=${username}`,
+      {
+        method: 'GET',
+        headers: {
+          'x-rapidapi-key': process.env.RAPIDAPI_KEY,
+          'x-rapidapi-host': "social-api4.p.rapidapi.com"
+        }
+      }
+    );
 
-    const run = await client.actor('apify/instagram-profile-scraper').call(input);
-    
-    if (!run.defaultDatasetId) {
-      return res.status(500).json({ error: 'Failed to fetch profile details' });
+    if (!apiResponse.ok) {
+      console.error('Error response from RapidAPI:', apiResponse.status, apiResponse.statusText);
+      return res.status(apiResponse.status).json({ error: 'Error fetching profile details from RapidAPI' });
     }
 
-    const datasetClient = client.dataset(run.defaultDatasetId);
-    const { items } = await datasetClient.listItems({ limit: 1 });
+    const fullData = await apiResponse.json();
 
-    if (!items || !items.length) {
-      return res.status(404).json({ error: 'Profile not found' });
-    }
+    const profileData = fullData.data;
 
-    const profile = items[0];
+    const filteredData = {
+      follower_count: profileData.follower_count,
+      following_count: profileData.following_count,
+      full_name: profileData.full_name,
+      biography: profileData.biography,
+      username: profileData.username,
+      profile_pic_url_hd: profileData.profile_pic_url_hd,
+      external_url: profileData.external_url,
+      postsCount: profileData.media_count, 
+    };
 
-    return res.status(200).json({
-      id: profile.id || profile.username,
-      username: profile.username,
-      fullName: profile.fullName || '',
-      bio: profile.biography || profile.bio || '',
-      profilePicture: profile.profilePicUrlHD || profile.profilePicUrl || '/no-profile-pic-img.png',
-      followersCount: profile.followersCount || 0,
-      followingCount: profile.followingCount || 0,
-      postsCount: profile.postsCount || 0,
-      isPrivate: profile.isPrivate ?? false,
-      isVerified: profile.isVerified ?? false,
-      externalUrl: profile.externalUrl || '',
-      businessCategory: profile.businessCategory || '',
-    });
+    res.status(200).json(filteredData);
   } catch (error) {
-    console.error('Error fetching profile details:', error.message || error);
-    return res.status(500).json({ error: error.message || 'Internal Server Error' });
+    console.error("Error fetching profile:", error);
+    res.status(500).json({ error: 'Failed to fetch profile details' });
   }
 }
-
-
-
-

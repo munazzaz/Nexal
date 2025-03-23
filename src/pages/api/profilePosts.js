@@ -1,83 +1,78 @@
-import { ApifyClient } from "apify-client";
-
-function formatNumber(num) {
-  if (num >= 1e6) return (num / 1e6).toFixed(1) + "M";
-  if (num >= 1e3) return (num / 1e3).toFixed(0) + "k";
-  return num.toString();
-}
-
 export default async function handler(req, res) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method Not Allowed" });
+  const { username, page } = req.query;
+
+  if (!username) {
+    console.error("No username provided in query.");
+    return res.status(400).json({ error: "Username query parameter is required." });
   }
 
-  const { id, page = "1", limit = "5" } = req.query;
-  if (!id) {
-    return res.status(400).json({ error: "Missing id parameter" });
-  }
+  const requestedPage = page ? parseInt(page, 10) : 1;
+  const postsPerPage = 5;
+  const requiredPostsCount = requestedPage * postsPerPage;
 
-  const pageNumber = parseInt(page, 10) || 1;
-  const pageSize = parseInt(limit, 10) || 5;
-  const offset = (pageNumber - 1) * pageSize;
+  const apiKey = process.env.RAPIDAPI_KEY; 
+  const apiHost = "social-api4.p.rapidapi.com";
+  const options = {
+    method: "GET",
+    headers: {
+      "x-rapidapi-key": apiKey,
+      "x-rapidapi-host": apiHost,
+    },
+  };
 
+  const baseUrl = `https://social-api4.p.rapidapi.com/v1/posts?username_or_id_or_url=${username}`;
 
-  
+  let allPosts = [];
+  let currentPageUrl = baseUrl;
+  let paginationToken = null;
+
   try {
-    const client = new ApifyClient({
-      token: "apify_api_GP5LAo7dzbzZyGkj4Lu8i0tuJlI4G90qJLX0", 
+    do {
+      console.log("Requesting URL:", currentPageUrl);
+      const response = await fetch(currentPageUrl, options);
+      if (!response.ok) {
+        const textResponse = await response.text();
+        console.error("Error response status:", response.status);
+        return res
+          .status(response.status)
+          .json({ error: `Error fetching data from RapidAPI: ${textResponse}` });
+      }
+
+      const data = await response.json();
+
+      if (data.data && data.data.items) {
+        allPosts = allPosts.concat(data.data.items);
+      } else {
+        console.warn("No posts items found in response.");
+      }
+
+      paginationToken = data.pagination_token || null;
+      if (allPosts.length >= requiredPostsCount) break;
+
+      if (paginationToken) {
+        currentPageUrl = `${baseUrl}&pagination_token=${paginationToken}`;
+      }
+    } while (paginationToken);
+
+    const startIndex = (requestedPage - 1) * postsPerPage;
+    const endIndex = startIndex + postsPerPage;
+    const paginatedPosts = allPosts.slice(startIndex, endIndex);
+
+    const totalPages = Math.ceil(allPosts.length / postsPerPage);
+
+    res.status(200).json({
+      data: {
+        items: paginatedPosts,
+        count: allPosts.length,
+        totalPages,
+        currentPage: requestedPage,
+      },
     });
-
-    const input = {
-      username: [id],
-      resultsLimit: 60,
-    };
-    const run = await client.actor("apify/instagram-post-scraper").call(input);
-
-    if (!run.defaultDatasetId) {
-      return res.status(500).json({ error: "Failed to fetch profile posts" });
-    }
-
-    const datasetClient = client.dataset(run.defaultDatasetId);
-    const { items } = await datasetClient.listItems({
-      limit: pageSize,
-      offset: offset,
-    });
-
-    const pagePosts = items.map((item) => {
-      const datePosted = item.timestamp ? new Date(item.timestamp) : null;
-      const formattedDate = datePosted
-        ? datePosted.toLocaleDateString("en-US", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })
-        : "Unknown Date";
-
-      return {
-        image: item.displayUrl || item.imageUrl || "",
-        titleSnippet: item.caption
-          ? item.caption.slice(0, 50)
-          : "No Title", 
-        dateTime: formattedDate,
-        likes: item.likesCount ? formatNumber(item.likesCount) : "0",
-        commentsCount: item.commentsCount
-          ? formatNumber(item.commentsCount)
-          : "0",
-
-        fullCaption: item.caption || "",
-        latestComments: item.latestComments || [], 
-        latestComments: (item.latestComments || []).slice(0, 3),
-      };
-    });
-
-    return res.status(200).json({ 
-      isPrivate: true,
-
-      posts: pagePosts });
   } catch (error) {
-    console.error("Error fetching profile posts:", error);
-    return res
-      .status(500)
-      .json({ error: error.message || "Internal Server Error" });
+    console.error("Exception caught while fetching data:", error);
+    res.status(500).json({ error: error.message });
   }
 }
+
+
+

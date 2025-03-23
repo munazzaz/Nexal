@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     images: {
+      domains: ["scontent-waw2-2.cdninstagram.com",
+                "via.placeholder.com",
+                'instagram.fmci2-1.fna.fbcdn.net'
+      ],
+
       remotePatterns: [
           {
             protocol: 'https',
