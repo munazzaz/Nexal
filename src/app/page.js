@@ -14,7 +14,8 @@ const SignInPage = () => {
 
   return (
     <>
-      <Navbar />
+    <div className="relative z-[3000]"> <Navbar /></div>
+     
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-md text-gray-300">
           <h2 className="text-2xl font-bold mb-2">Sign in</h2>

@@ -3,89 +3,109 @@ import React from 'react';
 import Header from "@/components/Header";
 import InterestsCard from "@/components/InterestsCard";
 import PostCard from "@/components/PostCard";
+import RelationCard from '@/components/RelationCard';
 import ProfilePostsRapid from "@/components/ProfilePostsRapid";
 import ProfileCard from "@/components/ProfileCard";
 import { useParams } from "next/navigation";
 import useSWR from "swr";
 import Image from "next/image";
-
-const stats = [
-  {
-    iconSrc: "/card1.png",
-    title: "Risk Score",
-    mainText: "10,932",
-    subText: "+8.34%",
-    subTextColor: "text-[#28A745]",
-  },
-  {
-    iconSrc: "/card2.png",
-    title: "Latest Post",
-    mainText: "12,642",
-    subText: "+4.78%",
-    subTextColor: "text-[#28A745]",
-  },
-  {
-    iconSrc: "/card3.png",
-    title: "Location",
-    mainText: "United States",
-    subText: "New York, NY",
-    subTextColor: "text-[#28A745]",
-  },
-  {
-    iconSrc: "/card4.png",
-    title: "Last Seen",
-    mainText: "50 Minutes Ago",
-    subText: "14 January 2025",
-    subTextColor: "text-[#28A745]",
-  },
-];
+import Navbar from '@/components/Navbar';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-function insertLineBreak(bio, limit = 60) {
-  if (!bio || bio.length <= limit) return bio || "";
-  return `${bio.slice(0, limit)}\n${bio.slice(limit)}`;
-}
-
-function formatNumber(num) {
-  if (num >= 1e6) return (num / 1e6).toFixed(1) + "M";
-  if (num >= 1e3) return (num / 1e3).toFixed(1) + "K";
-  return num;
-}
-
 export default function ProfilePage() {
   const { id } = useParams();
-  const { data, error } = useSWR(
+
+  // Fetch profile details
+  const { data: profileData, error: profileError } = useSWR(
     id ? `/api/profileDetails?username=${id}` : null,
-    fetcher
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      refreshInterval: 0,
+    }
   );
 
+  // Fetch risk score
+  const { data: riskScoreData, error: riskScoreError } = useSWR(
+    id ? `/api/riskScore?username=${id}` : null,
+    fetcher,
+    { dedupingInterval: 3600000, revalidateOnFocus: false, refreshInterval: 0 }
+  );
+
+  const stats = [
+    {
+      iconSrc: "/card1.png",
+      title: "Risk Score",
+      mainText: "Loading...",
+      subText: "",
+      subTextColor: "text-[#28A745]",
+    },
+    {
+      iconSrc: "/card2.png",
+      title: "Latest Post",
+      mainText: "12,642",
+      subText: "+4.78%",
+      subTextColor: "text-[#28A745]",
+    },
+    {
+      iconSrc: "/card3.png",
+      title: "Location",
+      mainText: "United States",
+      subText: "New York, NY",
+      subTextColor: "text-[#28A745]",
+    },
+    {
+      iconSrc: "/card4.png",
+      title: "Last Seen",
+      mainText: "50 Minutes Ago",
+      subText: "14 January 2025",
+      subTextColor: "text-[#28A745]",
+    },
+  ];
+
+  if (riskScoreData && riskScoreData.finalAnalysis) {
+    stats[0].mainText = riskScoreData.finalAnalysis; 
+  } else if (riskScoreError) {
+    stats[0].mainText = "Error"; 
+  }
+
+  if (riskScoreData && riskScoreData.imageAnalysis && riskScoreData.imageAnalysis.length > 0) {
+    console.log("High risk content detected in images:", riskScoreData.imageAnalysis);
+  }
+  
   return (
     <div className="bg-[#111827] min-h-screen">
       {/* Header */}
       <div className="max-w-screen-2xl mx-auto">
-        <Header />
+        {/* <Header /> */}
+        <Navbar />
+
       </div>
       <hr className="border-gray-700" />
 
       <div className="max-w-screen-2xl mx-auto p-4">
-        {error ? (
+        {profileError ? (
           <div className="p-4 text-red-500 bg-slate-400 border border-gray-800 text-center">
-            Error loading profile: {error.message || "Unknown error"}
+            Error loading profile: {profileError.message || "Unknown error"}
           </div>
-        ) : !data ? (
+        ) : !profileData ? (
           <div className="p-4 text-gray-500 text-center">
             Loading Profile Details...
           </div>
         ) : (
           <>
-            <h1 className="text-[#F0FFFF] text-3xl font-semibold mb-6 px-12 mt-5">
+            <h1 className="text-[#F0FFFF] text-3xl font-semibold mb-6 px-12 mt-28">
               Social Media Report
             </h1>
 
-            <div className=''><ProfileCard profile={data} /></div>
-            
+            {/* Profile Card */}
+            <div>
+              <ProfileCard profile={profileData} />
+            </div>
 
+            {/* Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-7 mx-12 mt-6">
               {stats.map((item, idx) => (
                 <div
@@ -116,14 +136,21 @@ export default function ProfilePage() {
               ))}
             </div>
 
-            <div className="mt-16">
-              <PostCard />
-            </div>
+        {/* Relationship Card */}
+        <div className="mt-2 mb-24">
+        <h2 className="mx-12 mt-24 text-2xl font-bold text-[#F0FFFF] mb-4">Relatives & Associates</h2>
 
-            <div className="mt-2">
-              <InterestsCard />
-            </div>
+          <RelationCard username={id}/>
+          </div>
 
+
+            {/* Interests Card */}
+            <div className="relative z-[1000] mt-2">
+              <InterestsCard username={id} />
+            </div>
+           
+
+            {/* Profile Posts */}
             <div className="mt-16 px-5">
               <ProfilePostsRapid username={id} />
             </div>

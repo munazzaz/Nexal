@@ -3,7 +3,9 @@ const nextConfig = {
     images: {
       domains: ["scontent-waw2-2.cdninstagram.com",
                 "via.placeholder.com",
-                'instagram.fmci2-1.fna.fbcdn.net'
+                'instagram.fmci2-1.fna.fbcdn.net',
+                "example.com" // Added here
+
       ],
 
       remotePatterns: [

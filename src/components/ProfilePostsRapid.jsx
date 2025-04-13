@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import useSWR from "swr";
 import Image from "next/image";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 
 const Search = dynamic(
   () => import("lucide-react").then((mod) => mod.Search),
@@ -26,17 +27,51 @@ const truncateText = (text, maxLength = 100) => {
   return text.length > maxLength ? text.substring(0, maxLength) + " ..." : text;
 };
 
+// --- Adjusted helper function ---
+function getSightEngineLabel(analysis) {
+  const labels = [];
+  // If safe score is below 0.8, flag as "adult content"
+  if (analysis.nudity && analysis.nudity.safe < 0.8) {
+    labels.push("adult content");
+  }
+  // If offensive probability is above 0.01, mark as "offensive"
+  if (analysis.offensive && analysis.offensive.prob > 0.01) {
+    labels.push("offensive");
+  }
+  // For weapons, if value is above 0.005, mark as "weapon"
+  if (analysis.weapon && analysis.weapon > 0.005) {
+    labels.push("weapon");
+  }
+  // For drugs, if value is above 0.005, mark as "drugs"
+  if (analysis.drugs && analysis.drugs > 0.005) {
+    labels.push("drugs");
+  }
+  // If no concerning value, mark as safe.
+  if (labels.length === 0) {
+    labels.push("safe");
+  }
+  return labels.join(", ");
+}
+
 export default function PostSearch({ username }) {
   const [search, setSearch] = useState("");
   const [selectedPost, setSelectedPost] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = 12; 
+  const totalPages = 12;
 
+  // Fetch posts data
   const { data, error } = useSWR(
     username ? `/api/profilePosts?username=${username}&page=${currentPage}` : null,
     fetcher
   );
 
+  // Fetch risk score data (which includes imageAnalysis results)
+  const { data: riskScoreData, error: riskScoreError } = useSWR(
+    username ? `/api/riskScore?username=${username}` : null,
+    fetcher
+  );
+
+  // Fetch comments data when a post is selected
   const { data: commentsData, error: commentsError } = useSWR(
     selectedPost ? `/api/postComments?postId=${selectedPost.id}` : null,
     fetcher
@@ -53,33 +88,32 @@ export default function PostSearch({ username }) {
   if (!data)
     return <div className="p-6 text-gray-500">Loading posts...</div>;
 
+  // Utility function to normalize URLs (remove query parameters)
+  function normalizeUrl(url) {
+    return url.split('?')[0];
+  }
+
+  // Extract image analysis results from riskScoreData if available
+  const imageAnalysisResults =
+    riskScoreData && riskScoreData.imageAnalysis ? riskScoreData.imageAnalysis : [];
+
+  // Map through posts data and merge with image analysis results
   const posts = (data.data && data.data.items ? data.data.items : []).map(
     (post) => {
-
-      let titleSnippet = "No caption";
-      if (post.caption) {
-        if (typeof post.caption === "object" && post.caption.text) {
-          titleSnippet = post.caption.text;
-        } else if (typeof post.caption === "string") {
-          titleSnippet = post.caption;
-        } else {
-          titleSnippet = JSON.stringify(post.caption);
-        }
-      }
-
-      let image = null;
+      // Determine the image URL from possible fields
+      let imageUrl = null;
       if (
         post.image_versions2 &&
         post.image_versions2.candidates &&
         post.image_versions2.candidates[0]
       ) {
-        image = post.image_versions2.candidates[0].url;
+        imageUrl = post.image_versions2.candidates[0].url;
       } else if (
         post.image_versions &&
         post.image_versions.items &&
         post.image_versions.items[0]
       ) {
-        image = post.image_versions.items[0].url;
+        imageUrl = post.image_versions.items[0].url;
       } else if (
         post.carousel_media &&
         Array.isArray(post.carousel_media) &&
@@ -91,7 +125,27 @@ export default function PostSearch({ username }) {
           carouselItem.image_versions.items &&
           carouselItem.image_versions.items[0]
         ) {
-          image = carouselItem.image_versions.items[0].url;
+          imageUrl = carouselItem.image_versions.items[0].url;
+        }
+      }
+
+      // Find matching image analysis result by comparing normalized URLs.
+      const matchingAnalysis = imageAnalysisResults.find((analysis) =>
+        normalizeUrl(analysis.imageUrl) === normalizeUrl(imageUrl)
+      );
+
+      // If found, add its computed label; otherwise, an empty string.
+      const sightLabel = matchingAnalysis ? matchingAnalysis.label : "";
+
+      // Determine caption/snippet
+      let titleSnippet = "No caption";
+      if (post.caption) {
+        if (typeof post.caption === "object" && post.caption.text) {
+          titleSnippet = post.caption.text;
+        } else if (typeof post.caption === "string") {
+          titleSnippet = post.caption;
+        } else {
+          titleSnippet = JSON.stringify(post.caption);
         }
       }
 
@@ -103,11 +157,13 @@ export default function PostSearch({ username }) {
 
       return {
         ...post,
-        image,
+        image: imageUrl, // For display purposes
+        imageUrl,        // For matching analysis results
         titleSnippet,
         dateTime,
         likes,
         commentsCount,
+        sightLabel,      // Computed label from SightEngine
       };
     }
   );
@@ -150,11 +206,10 @@ export default function PostSearch({ username }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-            
         </div>
-        <button className="bg-[#52C2B1] px-4 py-2 pr-3 pl-3 text-white border rounded-md border-transparent">
-            Filter By
-          </button>
+        <button className="bg-[#52C2B1] px-4 py-2 text-white border rounded-md">
+          Filter By
+        </button>
       </div>
 
       <div className="bg-[#1f2937] mt-8 border border-gray-700 rounded-md overflow-x-auto">
@@ -174,15 +229,20 @@ export default function PostSearch({ username }) {
               filteredPosts.map((post, index) => (
                 <tr key={index} className="hover:bg-[#323232] transition-colors">
                   <td className="p-3">
-                    {post.image ? (
+                    {post.imageUrl ? (
                       <div className="relative w-[60px] h-[60px]">
-                      <Image
-                        src={post.image}
-                        alt={post.titleSnippet}
-                        fill
-                        className="object-cover rounded-full"
-                      />
-                    </div>
+                        <Image
+                          src={post.imageUrl}
+                          alt={post.titleSnippet}
+                          fill
+                          className="object-cover rounded-full"
+                        />
+                        {post.sightLabel && (
+                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-xs text-center text-white rounded-b">
+                            {post.sightLabel}
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <div className="text-gray-400">No image</div>
                     )}
@@ -279,17 +339,20 @@ export default function PostSearch({ username }) {
             </button>
             <div className="relative w-full mt-5 h-[250px]">
               <Image
-                src={selectedPost.image}
+                src={selectedPost.imageUrl}
                 alt="Post image"
                 fill
                 className="object-contain object-center rounded bg-[#1f2937]"
               />
+              {selectedPost.sightLabel && (
+                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-xs text-center text-white p-1">
+                  {selectedPost.sightLabel}
+                </div>
+              )}
             </div>
             <h2 className="text-[12px] mt-4 mb-2">
               {selectedPost.titleSnippet}
             </h2>
-            {/* <p className="mb-1">{selectedPost.dateTime}</p> */}
-
             <div className="mt-2">
               <h3 className="font-semibold mb-1">Comments</h3>
               {commentsError && (
@@ -336,6 +399,3 @@ export default function PostSearch({ username }) {
     </div>
   );
 }
-
-
-

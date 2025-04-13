@@ -1,4 +1,6 @@
 "use client";
+import Image from "next/image";
+import Logo from "./../../public/logo.png"
 
 import { MdKeyboardArrowDown } from "react-icons/md";
 
@@ -11,7 +13,7 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Logo Section */}
         <div className="flex items-center space-x-2">
-          <div className="bg-white w-8 h-8 rounded-full flex items-center justify-center">
+          {/* <div className="bg-white w-8 h-8 rounded-full flex items-center justify-center">
             <span className="text-black font-bold text-xl">P</span>
           </div>
           <div>
@@ -21,7 +23,9 @@ const Navbar = () => {
             <p className="text-teal-400 font-bold text-sm tracking-wider">
               GRAPH
             </p>
-          </div>
+          </div> */}
+                  <Image src={Logo} alt="Logo" width={65} height={65}/>
+
         </div>
 
         <div className="flex items-center justify-between gap-12">
