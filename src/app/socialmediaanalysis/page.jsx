@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import SearchBar from "@/components/Searchbar";
 import Navbar from "@/components/Navbar";
+import NavbarGraph from "@/components/NavbarGraph";
 
 export default function SocialMediaAnalysis() {
   return (
@@ -10,7 +11,8 @@ export default function SocialMediaAnalysis() {
     <div className="">
       
     {/* <Header/> */}
-    <Navbar />
+    {/* <Navbar /> */}
+    <NavbarGraph />
 
     
     </div>
